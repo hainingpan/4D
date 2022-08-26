@@ -20,11 +20,15 @@ if __name__=="__main__":
     temp_list_sorted,fn_list_sorted=zip(*sorted(zip(temp_list,fn_list)))
     example=np.load(workingdir+fn_list_sorted[0])
     hf = h5py.File(workingdir+output+'.hdf5', 'w')
-    arr = hf.create_dataset('T', (len(fn_list_sorted),*example.shape), chunks=True,compression="gzip", compression_opts=9)
+    hf.create_dataset('T',data=temp_list_sorted)
+    arr = hf.create_dataset('I', (len(fn_list_sorted),*example.shape), chunks=True)
+    # For compressed data
+    # arr = hf.create_dataset('I', (len(fn_list_sorted),*example.shape), chunks=True,compression="gzip", compression_opts=9)
     for index,fn in enumerate(fn_list_sorted):
         print('Dumping {} (RAM={:.2f}GB)'.format(fn,psutil.Process().memory_info().rss / (1024 * 1024*1024)))
         st=time.time()
         arr[index]=np.load(workingdir+fn)
         print('Finish {} (RAM={:.2f}GB). Time {}'.format(fn,psutil.Process().memory_info().rss / (1024 * 1024*1024),time.time()-st))    
+    
     hf.close()
 
