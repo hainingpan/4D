@@ -15,8 +15,8 @@ if __name__=="__main__":
     args=parser.parse_args()
     workingdir=args.i
     output=args.o
-    fn_list=os.listdir(workingdir)
-    temp_list=[get_temp(fn) for fn in fn_list if '.npy' in fn]
+    fn_list=[fn for fn in os.listdir(workingdir) if '.npy' in fn]
+    temp_list=[get_temp(fn) for fn in fn_list]
     temp_list_sorted,fn_list_sorted=zip(*sorted(zip(temp_list,fn_list)))
     example=np.load(workingdir+fn_list_sorted[0])
     hf = h5py.File(workingdir+output+'.hdf5', 'w')
