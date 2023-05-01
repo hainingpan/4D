@@ -56,8 +56,24 @@ import COM
 #        [110,35],
 #        [5,49],
 #        [2,78]       ])
-num_line=[3,4,3,4,3]
-remove_index=frozenset((5,8,9,10,11,14))
+# num_line=[3,4,3,4,3]
+# remove_index=frozenset((5,8,9,10,11,14))
+
+# sample 3
+bragg_peaks=[]
+num_line=[3,3,3,3,3]
+remove_index=frozenset((3,6,7,10))
+k0=[66,65]
+k1=[69,95]
+k2=[42,81]
+i_range=np.array([[-3,2],[-2,2],[-1,2],[0,2],
+                    [-2,1],[-1,1],[0,1],[1,1],
+                    [-2,0],[-1,0],[0,0],[1,0],[2,0],
+                    [-1,-1],[0,-1],[1,-1],[2,-1],
+                    [-1,-2],[0,-2],[1,-2],[2,-2],[3,-2]])
+# crop in k space
+crop=np.full((128,128),True)
+crop[:,85:]=False
 class q_stat:
     def __init__(self,T_idx,x,y,workingdir,auto):
         '''
@@ -81,26 +97,10 @@ class q_stat:
     
     def _generate_bragg_peaks(self,auto):
         if auto:
-            com=COM.COM(data=self.logdata)
+            com=COM.COM(data=self.logdata,crop=crop,k0=k0,k1=k1,k2=k2,i_range=i_range)
             return com.generate_com()
         else:
-            return np.array([[ 55,  55],
-                    [ 59,  26],
-                    [ 73, 101],
-                    [ 86,  15],
-                    [ 32,  37],
-                    [ 36,   8],
-                    [ 78,  73],
-                    [ 51,  84],
-                    [ 28,  66],
-                    [ 24,  95],
-                    [ 82,  44],
-                    [  9,  19],
-                    [101,  91],
-                    [106, 62],
-                    [110,35],
-                    [5,49],
-                    [2,78]       ])
+            return bragg_peaks
             
 
     def all_peaks(self,remove_outlier=True, return_outlier=False,threshold=2):
@@ -218,7 +218,6 @@ class q_stat:
                 ax.text(cor[1],cor[0],'{:.0f}'.format(idx),color='cyan',fontsize=8)        
             ax.set_title('{} C'.format(self.T))
 
-        # return inside_num
         return self._get_metrics(inside_num)
 
 def _is_inside(tri_pts,test_pts,repel=0):

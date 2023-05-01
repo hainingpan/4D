@@ -1,1 +1,8 @@
 .xtec_env
+*.out
+*.pickle
+*.mp4
+*.png
+*.npy
+*.gif
+__pycache__

@@ -76,7 +76,7 @@ if __name__=='__main__':
     q_mean_map=np.zeros((T_list.shape[0],x_list.shape[0],y_list.shape[0]))
     q_std_map=np.zeros((T_list.shape[0],x_list.shape[0],y_list.shape[0]))
     q_length_map=np.zeros((T_list.shape[0],x_list.shape[0],y_list.shape[0]))
-    bragg_peaks=np.zeros((T_list.shape[0],x_list.shape[0],y_list.shape[0],17,2))
+    bragg_peaks=None
     count=0
     for r_i,result in zip(para_list,pool):
         T_idx,x,y,_,_,_,_=r_i
@@ -85,6 +85,8 @@ if __name__=='__main__':
         q_mean_map[T_idx,x,y]=result['mean']
         q_std_map[T_idx,x,y]=result['std']
         q_length_map[T_idx,x,y]=result['length']
+        if bragg_peaks is None:
+            bragg_peaks=np.zeros((T_list.shape[0],x_list.shape[0],y_list.shape[0],*result['bragg'].shape))
         bragg_peaks[T_idx,x,y]=result['bragg']
         count+=1
         if count%100==0:
