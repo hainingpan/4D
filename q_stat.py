@@ -204,9 +204,10 @@ class q_stat:
     def _centroid(self):
         return [(tr[0]+tr[1]+tr[2])/3 for tr in  self.bragg_triangle_list]
 
-    def visualize_grid(self,remove_central_shell=False):
+    def visualize_grid(self,remove_central_shell=False,ax=None):
         self.bragg_triangle_list=self._generate_triangle(remove_central_shell)
-        fig,ax=plt.subplots(figsize=(4,4))
+        if ax is None:
+            fig,ax=plt.subplots(figsize=(4,4))
         ax.pcolormesh(self.logdata,cmap='gray')
         ax.set_title('{} C'.format(self.T))
         centroid=self._centroid()
