@@ -39,6 +39,18 @@ import COM
 # num_line=[5,5,5,6,5]
 # remove_index=frozenset((9,14,15,16,17,24))
 # sample 2
+bragg_peaks=[]
+num_line=[3,4,3,4,3]
+remove_index=frozenset((5,8,9,10,11,14))
+k0=[54,54]
+k1=[51,83]
+k2=[28,65]
+i_range=np.array([[-2,2],[-1,2],[0,2],
+                    [-2,1],[-1,1],[0,1],[1,1],
+                    [-1,0],[0,0],[1,0],
+                    [-1,-1],[0,-1],[1,-1],[2,-1],
+                    [0,-2],[1,-2],[2,-2]])
+crop=np.full((128,128),True)
 # bragg_peaks=np.array([[ 55,  55],
 #        [ 59,  26],
 #        [ 73, 101],
@@ -56,24 +68,26 @@ import COM
 #        [110,35],
 #        [5,49],
 #        [2,78]       ])
-# num_line=[3,4,3,4,3]
-# remove_index=frozenset((5,8,9,10,11,14))
+
+
 
 # sample 3
-bragg_peaks=[]
-num_line=[3,3,3,3,3]
-remove_index=frozenset((3,6,7,10))
-k0=[66,65]
-k1=[69,95]
-k2=[42,81]
-i_range=np.array([[-3,2],[-2,2],[-1,2],[0,2],
-                    [-2,1],[-1,1],[0,1],[1,1],
-                    [-2,0],[-1,0],[0,0],[1,0],[2,0],
-                    [-1,-1],[0,-1],[1,-1],[2,-1],
-                    [-1,-2],[0,-2],[1,-2],[2,-2],[3,-2]])
-# crop in k space
-crop=np.full((128,128),True)
-crop[:,85:]=False
+# bragg_peaks=[]
+# num_line=[3,3,3,3,3]
+# remove_index=frozenset((3,6,7,10))
+# k0=[66,65]
+# k1=[69,95]
+# k2=[42,81]
+# i_range=np.array([[-3,2],[-2,2],[-1,2],[0,2],
+#                     [-2,1],[-1,1],[0,1],[1,1],
+#                     [-2,0],[-1,0],[0,0],[1,0],[2,0],
+#                     [-1,-1],[0,-1],[1,-1],[2,-1],
+#                     [-1,-2],[0,-2],[1,-2],[2,-2],[3,-2]])
+# # crop in k space
+# crop=np.full((128,128),True)
+# crop[:,85:]=False
+
+
 class q_stat:
     def __init__(self,T_idx,x,y,workingdir,auto):
         '''
@@ -97,7 +111,7 @@ class q_stat:
     
     def _generate_bragg_peaks(self,auto):
         if auto:
-            com=COM.COM(data=self.logdata,crop=crop,k0=k0,k1=k1,k2=k2,i_range=i_range)
+            com=COM.COM(data=10**self.logdata,crop=crop,k0=k0,k1=k1,k2=k2,i_range=i_range)
             return com.generate_com()
         else:
             return bragg_peaks
@@ -203,12 +217,13 @@ class q_stat:
             ax.text(cor[1],cor[0],'{:.0f}'.format(idx),color='cyan',fontsize=8)  
 
 
-    def count_pts(self,visualization=False,repel=1,remove_central_shell=False):
+    def count_pts(self,visualization=False,repel=1,remove_central_shell=False,ax=None):
         self.bragg_triangle_list=self._generate_triangle(remove_central_shell)
         inside_num,contains_pts=_is_inside(self.bragg_triangle_list,self.mask_ind,repel=repel)
         if visualization:
             centroid=self._centroid()
-            fig,ax=plt.subplots(figsize=(4,4))
+            if ax is None:
+                fig,ax=plt.subplots(figsize=(4,4))
             ax.pcolormesh(self.logdata,cmap='gray')
             ax.scatter(self.mask_ind[:,1]+0.5,self.mask_ind[:,0]+0.5,s=5,color='r')
             for triangle in self.bragg_triangle_list:

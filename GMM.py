@@ -10,13 +10,14 @@ from sklearn.metrics import silhouette_score
 from sklearn.model_selection import GridSearchCV
 from matplotlib.animation import FuncAnimation
 class GMM_model:
-    def __init__(self,filename,mask=None):
+    def __init__(self,filename,mask=None,mask_T=None):
         '''
         rs: (T_idx,x_idx,y_idx)
         mask: ((x_min,x_max),(y_min,y_max))
         '''
         self.filename=filename
-        self.mask=mask
+        self.mask=mask if mask is not None else slice(None)
+        self.mask_T=mask_T if mask_T is not None else slice(None)
         self.rs=self.load()
         self.labels_={}
         self.X_orig={}
@@ -40,7 +41,8 @@ class GMM_model:
         return rs
 
     def preprocessing(self,kind):
-        self.X_orig[kind]=self.rs[kind][:,self.mask].T
+        self.X_orig[kind]=self.rs[kind][:,self.mask][self.mask_T].T
+
         # self.X_orig[kind]=self.rs[kind].reshape((self.rs[kind].shape[0],-1)).T
 
         # estimators=[('standardize',StandardScaler()),]
@@ -77,15 +79,16 @@ class GMM_model:
         if not kind in self.search:
             if not kind in self.X:
                 self.preprocessing(kind)
-            def scoring(clf,X):
-                labels_=clf.fit_predict(self.X[kind])
-                return {'bic':clf.bic(self.X[kind]),'silhouette':silhouette_score(self.X[kind], labels_)}
+            # def scoring(clf,X):
+            #     labels_=clf.fit_predict(self.X[kind])
+            #     return {'bic':clf.bic(self.X[kind]),'silhouette':silhouette_score(self.X[kind], labels_)}
+            
             self.k_range=k_range
             self.search[kind]=GridSearchCV(GaussianMixture(n_init=trial), param_grid={"n_components":k_range},n_jobs=-1,return_train_score=True,scoring=scoring,verbose=4,cv=[(slice(None), slice(None))],refit=False)
             self.search[kind].fit(self.X[kind])
 
 
-    def GMM_plot(self,kind,permutation=None,ax=None):
+    def GMM_plot(self,kind,permutation=None,ax=None,**kwargs):
         if permutation is None:
             permutation=np.arange(self.k)
         offset=permutation-np.arange(self.k)
@@ -118,26 +121,21 @@ class GMM_model:
         ax[0].set_xlabel('y')
         ax[0].set_ylabel('x')
 
-        color_list=[cmap(idx) for idx in range(self.k)]
-        for n,color in zip(range(self.k),color_list):
-            mean=self.X[kind][labels_==n].T.mean(axis=-1)
-            ax[1].plot(self.rs['T'],mean,color=color,label=str(n))
-            error=self.X[kind][labels_==n].T.std(axis=-1)
-            ax[1].fill_between(self.rs['T'],mean-error,mean+error,color=color,alpha=0.5)
-        ax[1].set_xlabel('T (K)')
-        ax[1].set_ylabel('z-score of {}'.format(kind))
-        ax[1].legend()
+        for ax_idx in range(1,3):
+            color_list=[cmap(idx) for idx in range(self.k)]
+            for n,color in zip(range(self.k),color_list):
+                mean=self.X[kind][labels_==n].T.mean(axis=-1) if ax_idx==1 else self.X_orig[kind][labels_==n].T.mean(axis=-1)
+                ax[ax_idx].plot(self.rs['T'][self.mask_T],mean,color=color,label=str(n),**kwargs)
+                error=self.X[kind][labels_==n].T.std(axis=-1) if ax_idx==1 else self.X_orig[kind][labels_==n].T.std(axis=-1)
+                ax[ax_idx].fill_between(self.rs['T'][self.mask_T],mean-error,mean+error,color=color,alpha=0.5)
+            ax[ax_idx].set_xlabel('T (K)')
+            if ax_idx==1:
+                ax[ax_idx].set_ylabel('z-score of {}'.format(kind))
+            else:
+                ax[ax_idx].set_ylabel(kind)
+            ax[ax_idx].legend()
 
-        for n,color in zip(range(self.k),color_list):
-            mean=self.X_orig[kind][labels_==n].T.mean(axis=-1)
-            ax[2].plot(self.rs['T'],mean,color=color,label=str(n))
-            error=self.X_orig[kind][labels_==n].T.std(axis=-1)
-            ax[2].fill_between(self.rs['T'],mean-error,mean+error,color=color,alpha=0.5)
-        ax[2].set_xlabel('T (K)')
-        ax[2].set_ylabel(kind)
-        ax[2].legend()
-
-    def GMM_plot_single(self,kind,cluster_list,cond=None,errorbar=True,ax=None,ylim=None):
+    def GMM_plot_single(self,kind,cluster_list,cond=None,errorbar=True,ax=None,ylim=None,**kwargs):
         if ax is None:
             fig,ax=plt.subplots()
         labels_=self.labels_[kind]
@@ -146,10 +144,10 @@ class GMM_model:
         color_list=[cmap(idx) for idx in range(self.k)]
         for n in cluster_list:
             mean=self.X_orig[kind][labels_==n].T.mean(axis=-1)
-            ax.plot(self.rs['T'],mean,color=color_list[n],label=str(n))
+            ax.plot(self.rs['T'][self.mask_T],mean,color=color_list[n],label=str(n),**kwargs)
             if errorbar:
                 error=self.X_orig[kind][labels_==n].T.std(axis=-1)
-                ax.fill_between(self.rs['T'],mean-error,mean+error,color=color_list[n],alpha=0.5)
+                ax.fill_between(self.rs['T'][self.mask_T],mean-error,mean+error,color=color_list[n],alpha=0.5)
         ax.set_xlabel('T (K)')
         if ylim is not None:
             ax.set_ylim(ylim)
@@ -158,7 +156,7 @@ class GMM_model:
         if cond is not None:
             ax2=ax.twinx()
             ax2.plot(cond[:,0],cond[:,1],color='k',ls='dashed')
-            ax2.set_xlim(self.rs['T'][0],self.rs['T'][-1])
+            ax2.set_xlim(self.rs['T'][self.mask_T][0],self.rs['T'][self.mask_T][-1])
             ax2.set_ylabel('R ($\Omega$)')
             ax2.tick_params(axis='y', labelcolor='k')
 
@@ -178,3 +176,6 @@ class GMM_model:
         #     self.ij[cluster]=np.unravel_index(idx, self.rs[kind].shape[1:])
         return self.ij
 
+def scoring(clf,X):
+    labels_=clf.fit_predict(X)
+    return {'bic':clf.bic(X),'silhouette':silhouette_score(X, labels_)}

@@ -10,19 +10,15 @@ class COM:
                     [-2,1],[-1,1],[0,1],[1,1],
                     [-1,0],[0,0],[1,0],
                     [-1,-1],[0,-1],[1,-1],[2,-1],
-                    [0,-2],[1,-2],[2,-2]]),crop=None):
+                    [0,-2],[1,-2],[2,-2]]),crop=None,radius=3):
         self.data=data
         self.k0=np.array(k0)
         self.k1=np.array(k1)
         self.k2=np.array(k2)
         self.i_range=i_range
         self.crop=np.full(data.shape, True) if crop is None else crop
+        self.radius=radius
         self.x_i=self.generate_x_i()
-        # self.i_range=np.array([[-2,2],[-1,2],[0,2],
-        #                        [-2,1],[-1,1],[0,1],[1,1],
-        #                        [-1,0],[0,0],[1,0],
-        #                        [-1,-1],[0,-1],[1,-1],[2,-1],
-        #                        [0,-2],[1,-2],[2,-2]])
         self.lines=generate_lines(index_range=self.i_range,vectors=np.array([[1,0],[0,1],[-1,1]]))
 
     def generate_x_i(self):
@@ -30,39 +26,57 @@ class COM:
         x_i=np.round(x_i).astype(int)
         uncropped_pts=(self.crop[tuple(x_i.T)])
         self.i_range=self.i_range[uncropped_pts]
-        return x_i[uncropped_pts]
+        x_i=x_i[uncropped_pts]
+        # x_i=self.relocate_max(x_i)
+        return x_i
+    
+    # def relocate_max(self,x_i_list):
+    #     x_i_updated=np.zeros_like(x_i_list)
+    #     for label_idx,x_i in enumerate(x_i_list):
+    #         i_min,j_min=max(x_i[0]-self.radius,0),max(x_i[1]-self.radius,0)
+    #         i_max,j_max=min(x_i[0]+self.radius+1,self.data.shape[0]),min(x_i[1]+self.radius+1,self.data.shape[1])
+    #         data=self.data[i_min:i_max,j_min:j_max]
+    #         idx=np.unravel_index(data.argmax(), data.shape)
+    #         x_i_updated[label_idx]=np.arange(i_min,i_max)[idx[0]],np.arange(j_min,j_max)[idx[1]]
+    #     return x_i_updated
 
-    def generate_mask(self,radius=3):
-        # if x_i is None:
-        #     x_i=self.generate_x_i()
+    # def generate_mask(self):
+    #     # if x_i is None:
+    #     #     x_i=self.generate_x_i()
+    #     mask=np.zeros(self.data.shape,dtype=int)
+    #     x_i_all=[]
+    #     for i in range(-self.radius,self.radius+1):
+    #         for j in range(-self.radius,self.radius+1):
+    #             x_i_all.append(self.x_i+np.array([i,j]))
+    #     x_i_all=np.vstack(x_i_all)
+    #     x_i_all[x_i_all<0]=0
+    #     x_i_all[x_i_all[:,0]>=self.data.shape[0]]=self.data.shape[0]-1
+    #     x_i_all[x_i_all[:,1]>=self.data.shape[1]]=self.data.shape[1]-1
+    #     mask[tuple(x_i_all.T)]=1
+    #     return mask
+    def generate_mask_ordered(self,x_i_list):
         mask=np.zeros(self.data.shape,dtype=int)
-        x_i_all=[]
-        for i in range(-radius,radius+1):
-            for j in range(-radius,radius+1):
-                x_i_all.append(self.x_i+np.array([i,j]))
-        x_i_all=np.vstack(x_i_all)
-        x_i_all[x_i_all<0]=0
-        x_i_all[x_i_all[:,0]>=self.data.shape[0]]=self.data.shape[0]-1
-        x_i_all[x_i_all[:,1]>=self.data.shape[1]]=self.data.shape[1]-1
-        mask[tuple(x_i_all.T)]=1
-        return mask
-    def generate_mask_ordered(self,radius=3):
-        mask=np.zeros(self.data.shape,dtype=int)
-        for label_idx,x_i in enumerate(self.x_i):
-            shift_i,shift_j=np.mgrid[-radius:radius+1,-radius:radius+1]
-            shift_i,shift_j=x_i[0]+shift_i.flatten(),x_i[1]+shift_j.flatten()
-            shift_i=np.maximum(0,shift_i)
-            shift_i=np.minimum(self.data.shape[0],shift_i)
-            shift_j=np.maximum(0,shift_j)
-            shift_j=np.minimum(self.data.shape[1],shift_j)
-            mask[shift_i,shift_j]=label_idx+1
-        return mask,label_idx+1
+        data=np.zeros(self.data.shape,dtype=float)
+        x_i_list=np.round(x_i_list).astype(int)
+        for label_idx,x_i in enumerate(x_i_list):
+            i_min,j_min=max(x_i[0]-self.radius,0),max(x_i[1]-self.radius,0)
+            i_max,j_max=min(x_i[0]+self.radius+1,self.data.shape[0]),min(x_i[1]+self.radius+1,self.data.shape[1])
+            mask[i_min:i_max,j_min:j_max]=label_idx+1
+            data[i_min:i_max,j_min:j_max]=self.data[i_min:i_max,j_min:j_max]-self.data[i_min:i_max,j_min:j_max].min()
+
+        return data,(mask,label_idx+1)
 
     def generate_com(self):
-        # mask=self.generate_mask()
-        # lbl=ndimage.label(mask)
-        lbl=self.generate_mask_ordered()
-        return np.array(ndimage.center_of_mass(self.data,lbl[0],range(1,lbl[1]+1)))
+        x_i_old=self.x_i
+        data,lbl=self.generate_mask_ordered(x_i_old)
+        x_i_new=np.array(ndimage.center_of_mass(data,lbl[0],range(1,lbl[1]+1)))
+        update=np.linalg.norm(x_i_new-x_i_old,axis=1).max()
+        while update>0.1:
+            x_i_old=x_i_new
+            data,lbl=self.generate_mask_ordered(x_i_old)
+            x_i_new=np.array(ndimage.center_of_mass(data,lbl[0],range(1,lbl[1]+1)))
+            update=np.linalg.norm(x_i_new-x_i_old,axis=1).max()
+        return x_i_new
 
     def visualize(self):
         com_ij=self.generate_com()
@@ -193,7 +207,3 @@ def is_contained(point, index_range, visited):
 
 def distance(x_i):
     return np.linalg.norm(x_i[:-1]-x_i[1:],axis=1)
-
-
-
-
